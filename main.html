@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <!--<link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.0/jquery.mobile-1.4.0.min.css" />-->
+    <link rel="stylesheet" href="jquery.mobile-1.4.2.min.css" />
+    <script src="../js/jquery-1.10.2.min.js"></script>
+    <script src="http://code.jquery.com/mobile/1.4.0/jquery.mobile-1.4.0.min.js"></script>
+    <!--<script src="../js/iscroll.js"></script>-->
+    <script src="../js/iscroll4.js"></script>
+
+    <!--<script src="../js/jquery.mobile-1.4.2.min.js"></script>-->
+    <script>
+        //global variables
+        var listArray=[];
+        var targetObjId;
+        var myScroll;
+        var pullDownEl;
+        var pullDownOffset;
+        var count=0;
+        function pullDownAction(){ //pull down event
+            setTimeout(function(){
+                var el,li, a, p;
+                //add li before mainList <ul>
+                el=document.getElementById('mainList');
+                li=document.createElement('li');
+                li.className="ui-li-has-thumb";// ! important add class to new li
+                a=document.createElement('a');
+                a.className='ui-btn';
+                p=document.createElement('p');
+                p.innerHTML="this is the new content added"+(++count);
+                a.appendChild(p);
+                li.appendChild(a);
+                el.insertBefore(li,el.childNodes[0]);
+                myScroll.refresh();
+            },1000)
+        }
+
+        function refreshLiId(){
+                var i=0;
+                $('#mainList li').each(function(){
+                    $(this).attr('id',"con_"+(++i));
+                    if($(this).attr('id')=="con_1"){
+                        $(this).addClass('ui-first-child');
+                    }
+                    if($(this).attr('id')=="con_2"){
+                        $(this).removeClass('ui-first-child');
+                    }
+                })
+        }
+
+        function loaded(){
+            pullDownEl=document.getElementById('pullDown');
+            pullDownOffset=pullDownEl.offsetHeight;
+            myScroll=new iScroll(
+                    'wrapper',
+                    {
+                        userTransition:false,
+                        topOffset:pullDownOffset,
+                        //tap:true,
+                        onRefresh:function(){
+                            if(pullDownEl.className.match('loading')){
+                                pullDownEl.className="";
+                                pullDownEl.querySelector('.pullDownLabel').innerHTML="";
+                            }
+                            refreshLiId();
+                            getListArray();//update listArray
+                            gestureEvent();//bind function
+                        },
+                        onScrollMove:function(){ // if not flip and flip class
+                            if(this.y>5 && !pullDownEl.className.match('flip')){
+                                pullDownEl.className='flip'; // add flip class to update icon
+                                pullDownEl.querySelector('.pullDownLabel').innerHTML="ready to update...";
+                            }
+                            else if(this.y<5 && pullDownEl.className.match('flip')){
+                                pullDownEl.className="";
+                                pullDownEl.querySelector('.pullDownLabel').innerHTML="ready to update...";
+                                this.minScrollY=-pullDownOffset;
+                            }
+                        },
+                        onScrollEnd:function(){
+                            if(pullDownEl.className.match('flip')){
+                                pullDownEl.className='loading';
+                                pullDownEl.querySelector('.pullDownLabel').innerHTML='loading...';
+                                pullDownAction();
+
+                            }
+                        }
+                    });
+            setTimeout(function(){
+                document.getElementById('wrapper').style.left='0';
+            },800);
+
+        }
+
+        document.addEventListener('touchmove',function(e){
+            e.preventDefault()
+        },false);
+
+
+//        document.addEventListener('DOMContentLoaded',function(e){
+//            setTimeout(loaded,200);
+//        },false)
+
+        $(function() {
+            $( "[data-role='navbar']" ).navbar();
+            //$( "[data-role='header'], [data-role='footer']" ).toolbar();
+        });
+
+        // Update the contents of the toolbars
+        $( document ).on( "pageshow", "[data-role='page']", function() {
+            // Each of the four pages in this demo has a data-title attribute
+            // which value is equal to the text of the nav button
+            // For example, on first page: <div data-role="page" data-title="Info">
+            var current = $( this ).jqmData( "title" );
+            // Change the heading
+            // $( "[data-role='header'] h1" ).text( current );
+            // Remove active class from nav buttons
+            if(current=="detail"){ //detail page hide nav bar
+                $('#fixed_nav').hide();
+                changeBtnShow(current);
+            }
+            else{
+                $('#fixed_nav').show();
+                changeBtnShow(current);
+                $( "[data-role='navbar'] a.ui-btn-active" ).removeClass( "ui-btn-active" );
+                // Add active class to current nav button
+                $( "[data-role='navbar'] a" ).each(function() {
+                    if ( $( this ).text() === current ) {
+                        $( this ).addClass( "ui-btn-active" );
+                    }
+                });
+            }
+        });
+        //change btn when goes to detail page
+        function changeBtnShow(pageId){
+            if(pageId=="detail"){
+                $('#gear_icon').removeClass('ui-icon-gear').addClass('ui-icon-back').attr('id','back_icon').attr('href','#mainPage');
+                $('#search_icon').hide();
+            }
+            else{
+                $('#back_icon').removeClass('ui-icon-back').addClass('ui-icon-gear').attr('id','gear_icon').attr('href','#panel-overlay');
+                $('#search_icon').show();
+            }
+        }
+
+        $(function(){
+            getListArray();
+            var status;//swipe will both trigger 'tap' and 'swipe' handler
+            gestureEvent();
+
+            $('#mainPage form').click(function(event){
+                if(event.target.tagName!=="A"){//not the clear btn
+                    $(this).animate({
+                        width:"-=220"
+                    },450,function(){
+                        $(this).css('display','none');
+                        $("#search_icon").css('visibility','visible');
+                    });
+                }
+            })
+        })
+
+        function gestureEvent(){
+            //swipe right to remove lists
+            $('#mainList li').on('swiperight',function(){
+                status='swiperight';
+                swiperightHandler(event);
+
+            });
+            function swiperightHandler(event){
+                //limit target event, add animation
+                if((event.target).tagName=='A'){
+                    animation($(event.target).parent());
+
+                }
+                else{
+                    animation($(event.target).parent().parent());
+                }
+
+                function animation(obj){
+                    obj.animate({
+                        left:"+=150"
+                    },400,function(){
+                        obj.remove();
+                        status='';
+                        getListArray();//update listArray
+                    })
+                }
+            }
+
+            //tap to show listDetail page
+            $('#mainList li').on('tap',function(){
+                if(status!=='swiperight'){
+                    tapHandler(event);
+                }
+            });
+            function tapHandler(event){
+                //tagName would be 'A' 'P' 'IMG'
+                if(event.target.tagName=='A'){
+                    targetObjId=$(event.target).parent().attr('id');
+                }
+                if(event.target.tagName=='P'){
+                    targetObjId=$(event.target).parent().parent().attr('id');
+                }
+
+                var content;
+                for(var i=0;i<listArray.length;i++){
+                    var theId=listArray[i].id;
+                    if(targetObjId==theId){
+                        content=listArray[i].txt;
+                    }
+                }
+                $.mobile.changePage("#mainDetail",{transition:"slideup",changeHash:false});
+                $('#sampleDetail').html(content);
+            }
+        }
+
+        function showFilter(obj){
+            $(obj).css('visibility','hidden');
+            var styles={
+                display:"block",
+                position:"fixed"
+                //width:'0'
+            }
+            $('#mainPage form').css(styles).css('z-index','2000').css('top','5px').css('right','10px');
+            $('#mainPage form').animate({
+                width:"+=220"
+            },450);
+            $('#searchForSelect').trigger('focus');
+        }
+
+        function getListArray(){
+            listArray.length=0;
+            $('#mainList li').each(function(){
+                var listObj={};
+                var pElement=$(this).find('p');
+                listObj.id=$(this).attr('id');
+                listObj.txt=pElement.html();
+                listArray.push(listObj);
+            })
+        }
+
+    </script>
+    <script id="panel-init">
+        $(function() {
+            //activate side-panel
+            $( "body>[data-role='panel']" ).panel().enhanceWithin();// !important
+            $('.setting_a').each(function(){
+                $(this).removeClass('ui-icon-carat-r ui-btn-icon-right');//remove right carat
+            })
+        });
+    </script>
+    <style>
+        #wrapper{
+            position:absolute;
+            z-index:1;
+            padding:0;
+            width:100%;
+        }
+
+        #pullDown{
+            margin-bottom:13px;
+            line-height:30px;
+        }
+        .ui-mobile a img{
+            margin-left:16px;
+        }
+        @-webkit-keyframes move{
+            0%{-webkit-transform:translateX(100px);transform:translateX(100px)}
+            100%{-webkit-transform:translateX(200px);transform:translateX(150px);z-index:1;}
+        }
+        @keyframes move{
+            0%{transform:translateX(100px)}
+            100%{transform:translateX(150px);z-index:1}
+        }
+        .animate{
+            -webkit-animation:move 2s linear;
+            animation:move 2s linear;
+        }
+        .ui-btn-icon-notext.ui-icon-gear:after{
+            margin-left:-4px !important;
+        }
+        .ui-btn-icon-notext.ui-icon-back:after{
+            margin-left:-4px !important;
+        }
+        /* Custom indentations are needed because the length of custom labels differs from
+    the length of the standard labels */
+        .custom-flipswitch.ui-flipswitch .ui-btn.ui-flipswitch-on {
+            text-indent: -3em;
+        }
+        .custom-flipswitch.ui-flipswitch .ui-flipswitch-off {
+            text-indent: 0.5em;
+        }
+        /* Custom widths are needed because the length of custom labels differs from
+           the length of the standard labels */
+        .custom-flipswitch.ui-flipswitch {
+            width: 6.875em;
+        }
+        .custom-flipswitch.ui-flipswitch.ui-flipswitch-active {
+            padding-left: 5em;
+            width: 1.875em;
+        }
+        @media (min-width: 28em) {
+            /*Repeated from rule .ui-flipswitch above*/
+            .ui-field-contain > label + .custom-size-flipswitch.ui-flipswitch {
+                width: 1.875em;
+            }
+        }
+        #newDetail div.ui-input-text{
+            color:transparent;
+            border-color:transparent;
+        }
+    </style>
+</head>
+<body onload="loaded()">
+
+<!-- fixed header -->
+<div data-role="header" data-position="fixed" class="ui-header ui-header-fixed ui-bar-a">
+    <a id='gear_icon' href="#panel-overlay" class="ui-btn ui-icon-gear  ui-nodisc-icon ui-alt-icon ui-btn-icon-notext ui-corner-all ui-btn-icon-left" style="left:10px;top:5px;"></a>
+    <a id='search_icon'href="#" class="ui-btn ui-icon-search ui-nodisc-icon ui-alt-icon ui-btn-icon-notext ui-corner-all ui-btn-icon-right" style="float:right;right:10px;top:5px;"
+       onclick="showFilter(this)"></a>
+    <h3 style="text-align:center;margin-top:-30px;">App Name</h3>
+
+    <div data-role="navbar" class="ui-bar-a" id="fixed_nav">
+        <ul>
+            <li><a href="#mainPage" class="ui-btn-active" data-transition="flip">chat</a></li>
+            <li><a href="#subPage" data-transition="flip">discover</a></li>
+            <li><a href="#subPage1" data-transition="flip">noname</a></li>
+        </ul>
+    </div>
+</div>
+<!-- end fixed header -->
+
+<div data-role="page" id="mainPage" data-title="chat" style="margin-top:94px;">
+    <!--<div data-role="main" class="ui-content ">-->
+
+        <form style="display:none;width:0"><!--it has to be inside page -->
+            <input id="searchForSelect" data-type="search">
+        </form>
+
+    <div data-role="content" class="ui-content" id="wrapper">
+        <div id="scroller">
+            <div id="pullDown">
+                <span class="pullDownIcon"></span><span class="pullDownLabel"></span>
+            </div>
+                <ul data-role="listview" id="mainList" data-filter="true" data-filter-placeholder="find list..." data-input="#searchForSelect">
+                        <li id="con_1"><a href="#"  class="ui-btn">
+                            <img src="../images/edit/tree.jpeg">
+                            <p>these are conversations11111</p>
+                        </a>
+                        </li>
+                        <li id="con_2"><a href="#" class="ui-btn">
+                            <img src="../images/edit/tree.jpeg">
+                            <p >These Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam</p>
+                        </a>
+                        </li>
+                        <li id="con_3"><a href="#" class="ui-btn">
+                            <img src="../images/edit/tree.jpeg">
+                            <p >tags nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam</p>
+                        </a>
+                        </li>
+                        <li id="con_4"><a href="#" class="ui-btn">
+                            <img src="../images/edit/tree.jpeg">
+                            <p >Tags erat, sed diam voluptua. At vero eos et accusam et justo duo dolores</p>
+                        </a>
+                        </li>
+                        <li id="con_5"><a href="#" class="ui-btn">
+                            <img src="../images/edit/tree.jpeg">
+                            <p >are et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est</p>
+                        </a>
+                        </li>
+                        <li id="con_6"><a href="#" class="ui-btn">
+                            <img src="../images/edit/tree.jpeg">
+                            <p >Filterable Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur</p>
+                        </a>
+                        </li>
+                        <li id="con_7"><a href="#" class="ui-btn">
+                            <img src="../images/edit/tree.jpeg">
+                            <p >Filterable Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur</p>
+                        </a>
+                        </li>
+                        <li id="con_8"><a href="#" class="ui-btn">
+                            <img src="../images/edit/tree.jpeg">
+                            <p >These Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam</p>
+                        </a>
+                        </li>
+                    </ul>
+        </div>
+
+    </div>
+    <!--<div data-role="footer">this is the footer</div>-->
+</div><!--  second Page -->
+
+
+<div data-role="page" id="subPage" data-title="discover" style="margin-top:94px;">
+    <div data-role='main' class="ui-content">
+        this is the discover page
+    </div>
+    <div data-role="footer">this is the subPage</div>
+</div>
+
+<div data-role="page" id="subPage1" data-title="noname" style="margin-top:94px;">
+    <div data-role='main' class="ui-content">
+        this is the noname page
+    </div>
+    <div data-role="footer">this is the subPage1</div>
+</div>
+
+<div data-role="page" id="mainDetail" data-title="detail" style="margin-top:70px">
+    <div data-role="main">
+
+        <img src="../images/edit/tree.jpeg" style="max-width: 50px;float:left;margin-right:20px;">
+        <p id='sampleDetail'style="">sample detail</p>
+        <div style="clear:both"></div>
+        <div id="newDetail" style="border:1px solid #ddd;margin-top:20px;margin-bottom:20px;height:2em;">
+          <!--<form style="width:20em;">-->
+                  <input type="text" id="newDetailInput" style="display:none;color:black;" onInput="getNewInputContent(event)">
+                  <button id='newDetailSend'style="width:5em;float:left;margin-left:15em;margin-top:-43px;line-height:10px;display:none;padding:0;height:2em;" onclick="newInputSend()">Send</button>
+            <a id='add_icon'href="#" class="ui-btn ui-icon-edit ui-nodisc-icon ui-alt-icon ui-btn-icon-notext ui-corner-all ui-btn-icon-left" style="float:left;left:-12px;bottom:25px;border-color:transparent"></a>
+            <div style="clear:both"></div>
+          <!--</form>-->
+            <script>
+                var newDetailContent="";
+                var i=1;
+              $(function(){
+                  $('#add_icon').click(function(){
+                      changeBtnFont();
+                      $(this).hide();
+                      $('#newDetailInput').css('display','block');
+                      $('#newDetailSend').css('display','block');
+                  })
+              })
+                function changeBtnFont(){
+                    if(newDetailContent==''){
+                        $('#newDetailSend').html('cancel');
+                    }
+                    else{
+                        $('#newDetailSend').html('send');
+                    }
+                }
+                function getNewInputContent(event){
+                    newDetailContent=event.target.value;
+                    changeBtnFont();
+                }
+                function newInputSend(){
+
+                    var btn_font=$('#newDetailSend').html();
+                    if(btn_font=='cancel'){
+                        //back to add icon
+                        $('#newDetailInput').css('display','none');
+                        $('#newDetailSend').css('display','none');
+                        $('#add_icon').show();
+                    }
+                    if(btn_font=='send'){
+                        appendContent(newDetailContent);
+                    }
+
+                    function appendContent(content){
+                        var newContent="<img src='../images/edit/tree.jpeg' style='max-width:50px;float:left;margin-right:20px'>"+
+                                "<p id='sampleDetail'></p> "+content+"<div style='clear:both'></div>";
+                        $(newContent).insertBefore($('#newDetail'));
+                        $("#newDetailInput").val("");
+                        $("#newDetailInput").trigger('focus');
+                    }
+
+                }
+
+            </script>
+        </div>
+    </div>
+    <div data-role="footer">this is the detail page</div>
+</div>
+
+
+<!-- sidePanel -->
+<div data-role="panel" id="panel-reveal" class="ui-panel" data-display="reveal"data-theme="a" data-position-fixed="true">
+    this is the reveal pannel
+</div>
+<div data-role="panel" id="panel-overlay" class="ui-panel" data-display="overlay" data-theme="a" data-position="left" >
+    <img src="../images/edit/tree.jpeg"style="float:left;max-width:30px;">
+    <h3>textUser</h3>
+    <form>
+        <!--<label for="logInSwitch">logIn Status</label>-->
+        <input type="checkbox" data-role="flipswitch" name="logInSwitch" id="logInSwitch" data-on-text="logIn" data-off-text="logOff" data-wrapper-class="custom-flipswitch" checked="">
+    </form>
+    <hr>
+    <div data-role="collapsible" data-mini="true" >
+        <h4>Settings</h4>
+        <ul data-role="listview" >
+            <li><a href="#" class="setting_a">setting1</a></li>
+            <li><a href="#" class="setting_a">setting2</a></li>
+            <li><a href="#" class="setting_a">setting3</a></li>
+        </ul>
+    </div>
+</div>
+<div data-role="panel" id="panel-push" class="ui-panel" data-display="push" data-theme="a" data-position-fixed="true">this is the overlay pannel</div>
+
+<!-- end sidePanel -->
+
+
+</body>
+</html>
